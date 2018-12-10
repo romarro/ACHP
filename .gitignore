@@ -1,3 +1,8 @@
 *.pyc
 /Documentation/Web/_build
 ACHP/__pycache__
+ACHP.egg-info/top_level.txt
+ACHP.egg-info/PKG-INFO
+ACHP.egg-info/SOURCES.txt
+ACHP.egg-info/dependency_links.txt
+ACHP.egg-info/not-zip-safe

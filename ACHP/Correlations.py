@@ -94,8 +94,16 @@ def TwoPhaseDensity(AS,xmin,xmax,Tdew,Tbubble,slipModel='Zivi'):
         raise ValueError("slipModel must be either 'Zivi' or 'Homogeneous'")
     C=S*rhog/rhof
 
+    # if it is greater than 1 we should limit xmax below 1.
+    if xmax >=1.0 :
+        xmax = 1.0 - 5 * machine_eps
+
+    # if it is smaller than 0 we should limit xmin above 0.
+    if xmin <= 0.0:
+        xmin = 0.0 + 5 * machine_eps
+
     if xmin+5*machine_eps<0 or xmax-5*machine_eps>1.0:
-        raise ValueError('Quality must be between 0 and 1')
+        raise ValueError(f'Quality must be between 0 and 1 (xmin={xmin}), (xmax={xmax}')
     #Avoid the zero and one qualities (undefined integral)
     if xmin==xmax:
         alpha_average=1/(1+C*(1-xmin)/xmin)
