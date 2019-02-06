@@ -656,7 +656,9 @@ class PHEHXClass():
             'h_c':h_c,
         }
         
-        return dict(Inputs.items()+Outputs.items())
+        o = Inputs
+        o.update(**Outputs)
+        return o
         
     def Calculate(self):
         """
