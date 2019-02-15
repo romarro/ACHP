@@ -19,7 +19,7 @@ class EvaporatorClass():
         self.h_tp_tuning=1.0
         self.cp_r_iter=False   #use iteration to find correct value of CP? -> default if not updated using kwargs
         self.__dict__.update(kwargs)
-        print "h_evap_tuning is manually set for 2-phase in Evaporator. Correct as necessary!"
+        print( "h_evap_tuning is manually set for 2-phase in Evaporator. Correct as necessary!")
     def Update(self,**kwargs):
         self.__dict__.update(kwargs)
         

@@ -202,7 +202,7 @@ class SecondaryCycleClass():
                 self.CoolingCoil.Calculate()
                 Tin_IHX=self.CoolingCoil.Tout_g
                 resid=self.Calculate(DT_evap,8,Tin_IHX)
-            except Exception,e:
+            except Exception as e:
                 if self.Verbosity>1:
                     print ('Failed: ',e.__str__())
                 raise
