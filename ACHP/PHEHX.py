@@ -143,9 +143,9 @@ class PHEHXClass():
             TList_c[i]=TrhoPhase_ph(self.AS_c,self.pin_c,EnthalpyList_c[i],self.Tbubble_c,self.Tdew_c,self.rhosatL_c,self.rhosatV_c)[0]
             TList_h[i]=TrhoPhase_ph(self.AS_h,self.pin_h,EnthalpyList_h[i],self.Tbubble_h,self.Tdew_h,self.rhosatL_h,self.rhosatV_h)[0]
 
-#        #Double-check that the edges are not pinched
-#        if TList_c[0]-1e-9>TList_h[0] or TList_c[-1]-1e-9>TList_h[-1]:
-#            raise ValueError('Outlet or inlet of PHE is pinching.  Why?')
+        ##Double-check that the edges are not pinched
+        #if TList_c[0]-1e-9>TList_h[0] or TList_c[-1]-1e-9>TList_h[-1]:
+        #    raise ValueError('Outlet or inlet of PHE is pinching.  Why?')
         
         #TODO: could do with more generality if both streams can change phase
         #Check if any internal points are pinched
