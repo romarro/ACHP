@@ -6,3 +6,4 @@ ACHP.egg-info/PKG-INFO
 ACHP.egg-info/SOURCES.txt
 ACHP.egg-info/dependency_links.txt
 ACHP.egg-info/not-zip-safe
+.pytest_cache
