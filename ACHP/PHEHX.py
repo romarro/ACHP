@@ -189,6 +189,7 @@ class PHEHXClass():
     def BuildEnthalpyLists(self,Q):
         #Start the enthalpy lists with inlet and outlet enthalpies
         #Ordered from lowest to highest enthalpies for both streams
+        #This works only in counter flow not in paralel flow
         EnthalpyList_h=[self.hin_h-Q/self.mdot_h, self.hin_h]
         EnthalpyList_c=[self.hin_c,self.hin_c+Q/self.mdot_c]
         
@@ -798,25 +799,25 @@ class PHEHXClass():
             
             EnthalpyList_c,EnthalpyList_h=self.BuildEnthalpyLists(Q)
                 
-#            #Plot temperature versus enthalpy profiles
-#            for i in range(len(EnthalpyList_c)-1):
-#                hc=np.linspace(EnthalpyList_c[i],EnthalpyList_c[i+1])
-#                Tc=np.zeros_like(hc)
-#                for j in range(len(hc)):
-#                    Tc[j],r,Ph=TrhoPhase_ph(self.Ref_c,self.pin_c,hc[j],self.Tbubble_c,self.Tdew_c,self.rhosatL_c,self.rhosatV_c)
-#                pylab.plot(self.mdot_c*(hc-EnthalpyList_c[0])/1000,Tc,'b')
-#                
-#            for i in range(len(EnthalpyList_h)-1):
-#                hh=np.linspace(EnthalpyList_h[i],EnthalpyList_h[i+1])
-#                Th=np.zeros_like(hh)
-#                for j in range(len(hh)):
-#                    Th[j],r,Ph=TrhoPhase_ph(self.Ref_h,self.pin_h,hh[j],self.Tbubble_h,self.Tdew_h,self.rhosatL_h,self.rhosatV_h)
-#                pylab.plot(self.mdot_h*(hh-EnthalpyList_h[0])/1000,Th,'r')
-#            pylab.show()
+            ##Plot temperature versus enthalpy profiles
+            #for i in range(len(EnthalpyList_c)-1):
+            #    hc=np.linspace(EnthalpyList_c[i],EnthalpyList_c[i+1])
+            #    Tc=np.zeros_like(hc)
+            #    for j in range(len(hc)):
+            #        Tc[j],r,Ph=TrhoPhase_ph(self.Ref_c,self.pin_c,hc[j],self.Tbubble_c,self.Tdew_c,self.rhosatL_c,self.rhosatV_c)
+            #    pylab.plot(self.mdot_c*(hc-EnthalpyList_c[0])/1000,Tc,'b')
+            #    
+            #for i in range(len(EnthalpyList_h)-1):
+            #    hh=np.linspace(EnthalpyList_h[i],EnthalpyList_h[i+1])
+            #    Th=np.zeros_like(hh)
+            #    for j in range(len(hh)):
+            #        Th[j],r,Ph=TrhoPhase_ph(self.Ref_h,self.pin_h,hh[j],self.Tbubble_h,self.Tdew_h,self.rhosatL_h,self.rhosatV_h)
+            #    pylab.plot(self.mdot_h*(hh-EnthalpyList_h[0])/1000,Th,'r')
+            #pylab.show()
                 
-#            Ph(self.Ref_h)
-#            pylab.plot(np.array(EnthalpyList_h)/1000,self.pin_h/1000*np.ones_like(EnthalpyList_h))
-#            pylab.show()
+            #Ph(self.Ref_h)
+            #pylab.plot(np.array(EnthalpyList_h)/1000,self.pin_h/1000*np.ones_like(EnthalpyList_h))
+            #pylab.show()
             
             I_h=0
             I_c=0

@@ -943,9 +943,9 @@ def KandlikarPHE(AS,xmean,G,D,q,Tbubble,Tdew):
     alpha_L = 0.023 * (G*D/mu_f)**(0.8) * Pr_f**(0.4) * k_f / D #[W/m^2-K]
     Co=(rhoG/rhoL)**(0.5)*((1-xmean)/xmean)**(0.8)
     Bo=q/(G*h_LG)
-#    E_CB=0.512
-#    E_NB=0.338
-#    F_fl=1.0
+    #E_CB=0.512
+    #E_NB=0.338
+    #F_fl=1.0
     #alpha_r=(2.312*Co**(-0.3)*E_CB+667.3*Bo**(2.8)*F_fl*E_NB)*(1-xmean)**(0.003)*alpha_L
     alpha_r=1.055*(1.056*Co**(-0.4)+1.02*Bo**(0.9))*xmean**(-0.12)*alpha_L**(0.98)
     return alpha_r
