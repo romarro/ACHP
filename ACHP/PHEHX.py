@@ -5,9 +5,21 @@ import CoolProp as CP
 from math import pi,exp,log,sqrt,tan,cos,sin
 from scipy.optimize import brentq
 import numpy as np
-import pylab
+# import pylab
 
 from ACHP.Correlations import ShahEvaporation_Average,PHE_1phase_hdP,Cooper_PoolBoiling,TwoPhaseDensity,TrhoPhase_ph,Phase_ph,LMPressureGradientAvg,KandlikarPHE,Bertsch_MC,AccelPressureDrop,ShahCondensation_Average,LongoCondensation
+
+def phase_boundary(AS: CP.AbstractState, press:float):
+    """returns the saturated entalpies for liquid and vapor""" 
+    if 'IncompressibleBackend' in AS.backend_name():
+        return 1e9, 1e9
+
+    AS.update(CP.PQ_INPUTS,press,0.0) # liquid saturated
+    hsatL=AS.hmass() #[J/kg]
+    AS.update(CP.PQ_INPUTS, press, 1.0) # vapor saturated
+    hsatV=AS.hmass() #[J/kg]
+    
+    return hsatL, hsatV
 
 class PHEHXClass():
     """
@@ -47,6 +59,11 @@ class PHEHXClass():
         # using the dictionary
         self.__dict__.update(kwargs)
     
+    def getFlowConfig(self):
+        if hasattr(self,'FlowConfig'):
+            return self.FlowConfig
+        return 'Counter'
+        
     def OutputList(self):
         """
             Return a list of parameters for this component for further output
@@ -111,6 +128,7 @@ class PHEHXClass():
         AS_c = self.AS_c
         
         #Inlet phases
+        #TODO: the folowing two can be replaced by directly calling the functions
         self.Tin_h,rhoin_h,Phasein_h=TrhoPhase_ph(self.AS_h,self.pin_h,self.hin_h,self.Tbubble_h,self.Tdew_h,self.rhosatL_h,self.rhosatV_h)
         self.Tin_c,rhoin_c,Phasein_c=TrhoPhase_ph(self.AS_c,self.pin_c,self.hin_c,self.Tbubble_c,self.Tdew_c,self.rhosatL_c,self.rhosatV_c)
         
@@ -186,7 +204,73 @@ class PHEHXClass():
         Outputs=PHE_1phase_hdP(Inputs)
         return Outputs['h'],Outputs['cp'],Outputs
     
+    def _pf_BuildEnthalpyLists(self, Q):
+        
+        #entalpy list in paralel flow should be reverse
+        #for the hot stream should be from high to low 
+        #for the cold stream should be from low to high
+        EnthalpyList_h=[self.hin_h, self.hin_h-Q/self.mdot_h]
+        EnthalpyList_c=[self.hin_c, self.hin_c+Q/self.mdot_c]
+
+        #Save the value of Q and outlet enthalpies
+        self.Q=Q
+        self.hout_h=EnthalpyList_h[1]
+        self.hout_c=EnthalpyList_c[1]
+        
+        #Call AbstractState
+        AS_h = self.AS_h
+        AS_c = self.AS_c
+
+        #TODO: to check if is not the pmean not pin!
+        hsatL_h, hsatV_h = phase_boundary(AS_h, self.pin_h)
+        hsatL_c, hsatV_c = phase_boundary(AS_c, self.pin_c)
+
+        # the order of the list is high -> low
+        # if hsatV_h is between the first and last element in list
+        if  EnthalpyList_h[0]> hsatV_h and hsatV_h > EnthalpyList_h[-1]:
+            EnthalpyList_h.insert(1,hsatV_h)
+        if EnthalpyList_h[0]> hsatL_h and hsatL_h > EnthalpyList_h[-1]:
+            EnthalpyList_h.insert(-1,hsatL_h)
+
+        # the order of the list is low -> high
+        if EnthalpyList_c[0]<hsatL_c and hsatL_c < EnthalpyList_c[-1]:
+            EnthalpyList_c.insert(1, hsatL_c)
+        if EnthalpyList_c[0]<hsatV_c and hsatV_c < EnthalpyList_c[-1]:
+            EnthalpyList_c.insert(-1, hsatV_c)
+        
+        I_h=0
+        I_c=0
+        while I_h<len(EnthalpyList_h)-1:
+            #Try to figure out whether the next phase transition is on the hot or cold side     
+            Qbound_h=self.mdot_h*(EnthalpyList_h[I_h]-EnthalpyList_h[I_h+1])
+            Qbound_c=self.mdot_c*(EnthalpyList_c[I_c+1]-EnthalpyList_c[I_c])
+            if Qbound_h<Qbound_c-1e-9:
+                # Minimum amount of heat transfer is on the hot side,
+                # add another entry to EnthalpyList_c 
+                EnthalpyList_c.insert(I_c+1, EnthalpyList_c[I_c]+Qbound_h/self.mdot_c)
+            elif Qbound_h>Qbound_c+1e-9:
+                # Minimum amount of heat transfer is on the cold side,
+                # add another entry to EnthalpyList_h at the interface
+                EnthalpyList_h.insert(I_h+1, EnthalpyList_h[I_h]-Qbound_c/self.mdot_h)
+            I_h+=1
+            I_c+=1
+
+        self.hsatL_c=hsatL_c
+        self.hsatL_h=hsatL_h
+        self.hsatV_c=hsatV_c
+        self.hsatV_h=hsatV_h
+
+        return EnthalpyList_c,EnthalpyList_h
+
+
     def BuildEnthalpyLists(self,Q):
+
+        # if the flow configuration is Parallel flow then you should run the parallel
+        # config list
+        # TODO: should be changed in future, isn't very nice.
+        if 'Parallel' in self.getFlowConfig():
+            return self._pf_BuildEnthalpyLists(Q)            
+        
         #Start the enthalpy lists with inlet and outlet enthalpies
         #Ordered from lowest to highest enthalpies for both streams
         #This works only in counter flow not in paralel flow
@@ -464,10 +548,16 @@ class PHEHXClass():
         Q=Inputs['Q']
         Qmax=Cmin*(Inputs['Tin_h']-Inputs['Tin_c'])
         epsilon = Q/Qmax
-        
-        #Pure counterflow with Cr<1 (Incropera Table 11.4)
-        NTU=1/(Cr-1)*log((epsilon-1)/(epsilon*Cr-1))
-        
+        if epsilon>=1./(1 + Cr):
+            NTU = 30000000 # a really huge number (signifies the infinity)
+        else:        
+            if 'Parallel' in self.getFlowConfig():
+                #Pure parallel flow (Incropera Table 11.4)
+                NTU = - log(1-epsilon * (1 + Cr))/(1 + Cr)
+            else:
+                #Pure counterflow with Cr<1 (Incropera Table 11.4)
+                NTU=1/(Cr-1)*log((epsilon-1)/(epsilon*Cr-1))
+            
         #Required UA value
         UA_req=Cmin*NTU
         
@@ -790,6 +880,10 @@ class PHEHXClass():
         #Figure out the limiting rate of heat transfer
         self.Qmax=self.DetermineHTBounds()
         
+        sign = 1.
+        if 'Parallel' in self.getFlowConfig():
+            sign = -1.
+        
         def GivenQ(Q):
             """
             In this function, the heat transfer rate is imposed.  Therefore the
@@ -825,7 +919,8 @@ class PHEHXClass():
             cellList=[]
             while I_h<len(EnthalpyList_h)-1:
                 #Try to figure out whether the next phase transition is on the hot or cold side     
-                Qbound_h=self.mdot_h*(EnthalpyList_h[I_h+1]-EnthalpyList_h[I_h])
+                # sign is -1 if the flow is parallel (the entalhy list order for hot stream is reversed)
+                Qbound_h=sign*self.mdot_h*(EnthalpyList_h[I_h+1]-EnthalpyList_h[I_h])
                 Qbound_c=self.mdot_c*(EnthalpyList_c[I_c+1]-EnthalpyList_c[I_c])
                 if Qbound_h<Qbound_c-1e-9:
                     # Minimum amount of heat transfer is on the hot side,
@@ -836,13 +931,20 @@ class PHEHXClass():
                     # Minimum amount of heat transfer is on the cold side,
                     # add another entry to EnthalpyList_h at the interface
                     Qbound=Qbound_c
-                    EnthalpyList_h.insert(I_h+1, EnthalpyList_h[I_h]+Qbound/self.mdot_h)
+                    # for parallel flow the entalphy order is reversed
+                    EnthalpyList_h.insert(I_h+1, EnthalpyList_h[I_h]+sign*Qbound/self.mdot_h)
                 else:
                     Qbound=Qbound_h
                 
                 #Figure out the inlet and outlet enthalpy for this cell
-                hout_h=EnthalpyList_h[I_h]
-                hin_h=hout_h+Qbound/self.mdot_h
+                if 'Parallel' in self.getFlowConfig():
+                    hin_h = EnthalpyList_h[I_h]
+                    hout_h = hin_h - Qbound/self.mdot_h
+                    assert np.allclose(hout_h, EnthalpyList_h[I_h + 1]), f"{hout_h:.3f} != {EntaEnthalpyList_h[I_h + 1]:.3f}"
+                else:
+                    hout_h=EnthalpyList_h[I_h]
+                    hin_h=hout_h+Qbound/self.mdot_h
+                
                 hin_c=EnthalpyList_c[I_c]
                 hout_c=hin_c+Qbound/self.mdot_c
                 
